@@ -15,12 +15,7 @@ function SshAccessory(log, config) {
   this.service = 'Switch';
 
   this.name = config['name'];
-  this.onCommand = config['on'];
-  this.offCommand = config['off'];
-  this.stateCommand = config['state'];
-  this.onValue = config['on_value'] || "playing";
-  this.onValue = this.onValue.trim().toLowerCase();
-  this.exactMatch = config['exact_match'] || true;
+  this.command = config['command'];
   this.ssh = assign({
     user: config['user'],
     host: config['host'],
@@ -29,22 +24,11 @@ function SshAccessory(log, config) {
   }, config['ssh']);
 }
 
-SshAccessory.prototype.matchesString = function(match) {
-  if(this.exactMatch) {
-    return (match === this.onValue);
-  }
-  else {
-    return (match.indexOf(this.onValue) > -1);
-  }
-}
-
 SshAccessory.prototype.setState = function(powerOn, callback) {
   var accessory = this;
   var state = powerOn ? 'on' : 'off';
-  var prop = state + 'Command';
-  var command = accessory[prop];
 
-  var stream = ssh(command, accessory.ssh);
+  var stream = ssh(accessory.command, accessory.ssh);
 
   stream.on('error', function (err) {
     accessory.log('Error: ' + err);
@@ -59,20 +43,7 @@ SshAccessory.prototype.setState = function(powerOn, callback) {
 
 SshAccessory.prototype.getState = function(callback) {
   var accessory = this;
-  var command = accessory['stateCommand'];
-
-  var stream = ssh(command, accessory.ssh);
-
-  stream.on('error', function (err) {
-    accessory.log('Error: ' + err);
-    callback(err || new Error('Error getting state of ' + accessory.name));
-  });
-
-  stream.on('data', function (data) {
-    var state = data.toString('utf-8').trim().toLowerCase();
-    accessory.log('State of ' + accessory.name + ' is: ' + state);
-    callback(null, accessory.matchesString(state));
-  });
+  callback(null);
 }
 
 SshAccessory.prototype.getServices = function() {
@@ -86,10 +57,6 @@ SshAccessory.prototype.getServices = function() {
 
   var characteristic = switchService.getCharacteristic(Characteristic.On)
   .on('set', this.setState.bind(this));
-
-  if (this.stateCommand) {
-    characteristic.on('get', this.getState.bind(this))
-  };
 
   return [switchService];
 }
